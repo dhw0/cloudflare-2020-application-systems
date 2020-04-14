@@ -106,9 +106,15 @@ int main(int argc, char *argv[])
     int sock = socket(PF_INET, SOCK_RAW, 1);
     setsockopt(sock, IPPROTO_IP, IP_TTL, &ttl, sizeof(ttl));
     struct sockaddr_in addr; // ttl is measured in seconds
-    addr.sin_family = AF_INET;
+    struct hostent *hostEntity;
+    if ((hostEntity = gethostbyname(argv[1])) == nullptr) {
+        cout << "DNS lookup failed" << endl;
+        exit(1);
+    }
+    addr.sin_family = hostEntity->h_addrtype;
     addr.sin_port = 0;
-    addr.sin_addr.s_addr = inet_addr(argv[1]);
-
+    addr.sin_addr.s_addr = inet_addr(hostEntity->h_addr);
+    
+    ping(addr, sock);
     return 0;
 }
