@@ -4,14 +4,14 @@
 #include <fcntl.h>
 #include <unistd.h>
 #include <netdb.h>
-#include <string>
 #include <string.h>
 #include <chrono>
 
 #include <iostream>
+using namespace std::chrono;
+using std::cerr;
 using std::cout;
 using std::endl;
-using std::string;
 
 // header
 typedef struct icmp_header
@@ -44,15 +44,16 @@ int ping(sockaddr_in &addr, int s)
         icmp_header packet;
         packet.type = 8;
         packet.code = 0;
-        packet.chksum = 0xfff7;             // 1's complement
+        // 1's complement
         packet.data = 0 + icmp_header::num; // set sequence number
+        packet.chksum = ~(uint16_t(packet.type << 8) + uint16_t(packet.data >> 16) + uint16_t(packet.data & 0xFFFF));
 
         int result = sendto(s, &packet, sizeof(packet),
                             0, (struct sockaddr *)&addr, sizeof(addr));
-        auto start = std::chrono::system_clock::now();
+        auto start = system_clock::now();
         if (result < 0)
         {
-            cout << "ping error" << endl;
+            cerr << "Ping error" << endl;
         }
         unsigned int resAddressSize;
         unsigned char res[30] = "";
@@ -60,30 +61,35 @@ int ping(sockaddr_in &addr, int s)
 
         int response = recvfrom(s, res, sizeof(res), 0, &resAddress,
                                 &resAddressSize);
-        auto end = std::chrono::system_clock::now();
+        auto end = system_clock::now();
         if (response > 0)
         {
             icmp_response *echo;
             echo = (icmp_response *)&res[20]; // throw away header
             if (echo->sequence_number != icmp_header::num)
             {
-                cout << "sequence numbers do not match" << endl;
+                cerr << "Sequence numbers do not match" << endl;
+            }
+            else if (echo->type == 11 && echo->code == 0)
+            {
+                cerr << "TTL exceeded" << endl;
             }
             else
             {
                 ++received;
                 auto latency = end - start;
-                cout << "latency: " << latency.count() << endl;
+                cout << "Latency: " << latency.count() << endl;
             }
         }
         else
         {
-            cout << "response error" << endl;
+            cerr << "response error" << endl;
         }
-        cout << "Sent " << sent << "packets, received " << received 
+        cout << "Sent " << sent << "packets, received " << received
              << "packets" << endl;
-        
+        usleep(500000); // sleep for 0.5 seconds
     }
+    return 0;
 }
 
 int main(int argc, char *argv[])
@@ -99,7 +105,7 @@ int main(int argc, char *argv[])
     }
     else
     {
-        cout << "Usage is ./" << argv[0] << " [hostname/ip] [TTL]. TTL is optional." << endl;
+        cerr << "Usage is ./" << argv[0] << " [hostname/ip] [TTL]. TTL is optional." << endl;
         exit(1);
     }
 
@@ -107,14 +113,15 @@ int main(int argc, char *argv[])
     setsockopt(sock, IPPROTO_IP, IP_TTL, &ttl, sizeof(ttl));
     struct sockaddr_in addr; // ttl is measured in seconds
     struct hostent *hostEntity;
-    if ((hostEntity = gethostbyname(argv[1])) == nullptr) {
-        cout << "DNS lookup failed" << endl;
+    if ((hostEntity = gethostbyname(argv[1])) == nullptr)
+    {
+        cerr << "DNS lookup failed" << endl;
         exit(1);
     }
     addr.sin_family = hostEntity->h_addrtype;
     addr.sin_port = 0;
     addr.sin_addr.s_addr = inet_addr(hostEntity->h_addr);
-    
+
     ping(addr, sock);
     return 0;
 }
