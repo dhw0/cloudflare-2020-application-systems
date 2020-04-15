@@ -44,9 +44,10 @@ int ping(sockaddr_in &addr, int s)
         icmp_header packet;
         packet.type = 8;
         packet.code = 0;
-        // 1's complement
         packet.data = 0 + icmp_header::num; // set sequence number
-        packet.chksum = ~(uint16_t(packet.type << 8) + uint16_t(packet.data >> 16) + uint16_t(packet.data & 0xFFFF));
+        // compute checksum
+        packet.chksum = ~(uint16_t(packet.type) + uint16_t(packet.code) +
+                          uint16_t(packet.data >> 16) + uint16_t(packet.data & 0xFFFF));
 
         int result = sendto(s, &packet, sizeof(packet),
                             0, (struct sockaddr *)&addr, sizeof(addr));
@@ -54,7 +55,9 @@ int ping(sockaddr_in &addr, int s)
         if (result < 0)
         {
             cerr << "Ping error" << endl;
+            exit(1);
         }
+        ++sent;
         unsigned int resAddressSize;
         unsigned char res[30] = "";
         struct sockaddr resAddress;
@@ -85,8 +88,8 @@ int ping(sockaddr_in &addr, int s)
         {
             cerr << "response error" << endl;
         }
-        cout << "Sent " << sent << "packets, received " << received
-             << "packets" << endl;
+        cout << "Sent " << sent << " packets, received " << received
+             << " packets" << endl;
         usleep(500000); // sleep for 0.5 seconds
     }
     return 0;
@@ -120,8 +123,8 @@ int main(int argc, char *argv[])
     }
     addr.sin_family = hostEntity->h_addrtype;
     addr.sin_port = 0;
-    addr.sin_addr.s_addr = inet_addr(hostEntity->h_addr);
-
+    addr.sin_addr.s_addr = inet_addr(argv[1]);
+    addr.sin_addr.s_addr = *(long*)hostEntity->h_addr;
     ping(addr, sock);
     return 0;
 }
