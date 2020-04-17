@@ -70,7 +70,7 @@ int ping(sockaddr_in &addr, int s)
         {
             icmp_response *echo;
             echo = (icmp_response *)&res[20]; // throw away header
-            if (echo->sequence_number != icmp_header::num)
+            if (echo->sequence_number != icmp_header::num++)
             {
                 cerr << "Sequence numbers do not match" << endl;
             }
