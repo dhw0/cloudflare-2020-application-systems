@@ -39,6 +39,7 @@ int ping(sockaddr_in &addr, int s)
 {
     int sent = 0;
     int received = 0;
+    int tle = 0;
     while (true)
     {
         icmp_header packet;
@@ -75,6 +76,7 @@ int ping(sockaddr_in &addr, int s)
             }
             else if (echo->type == 11 && echo->code == 0)
             {
+                ++tle;
                 cerr << "TTL exceeded" << endl;
             }
             else
@@ -89,7 +91,7 @@ int ping(sockaddr_in &addr, int s)
             cerr << "response error" << endl;
         }
         cout << "Sent " << sent << " packets, received " << received
-             << " packets" << endl;
+             << " packets, time exceeded: " << tle << "packets" << endl;
         usleep(500000); // sleep for 0.5 seconds
     }
     return 0;
